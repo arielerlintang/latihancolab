@@ -1,0 +1,559 @@
+proyek saya adalah sistem pakar diagnosa penyakit ISPA menggunakan forward chaining
+
+
+posisi database saya sebagai berikut 
+
+gejala
+kode_gejala	
+nama_gejala
+
+
+penyakit
+kode_penyakit	
+nama_penyakit	
+keterangan	
+solusi	
+
+
+
+aturan
+id_aturan	
+kode_gejala_parent	
+kode_gejala_pertanyaan	
+kode_gejala_ya	
+kode_gejala_tidak	
+kode_penyakit
+
+
+
+riwayat_diagnosis
+id_riwayat
+id_pasien
+tanggal_diagnosis
+kode_penyakit
+persen
+
+
+ini adalah controller code igniter saya 
+<?php 
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+class Periksa extends CI_Controller {
+    public function __construct() {
+        parent::__construct();
+        $this->load->model('Mperiksa');
+        if (empty($this->session->userdata('pasien'))) {
+            $this->session->set_flashdata('pesan_gagal', 'Anda Harus Login');
+            redirect('/','refresh');
+        }
+    }
+
+    // Metode untuk menangani proses pemeriksaan
+    public function index($id_aturan = 0) {
+       
+            $this->load->view('pasien/header');
+            $this->load->view('pasien/hasil', $data);
+            $this->load->view('pasien/footer');
+        }
+    }
+
+    
+}
+
+
+ini adalah mode Mperiksa saya 
+
+<?php
+class Mperiksa extends CI_Model {
+
+}
+
+
+lalu ini adalah view saya periksa.php
+
+<!-- application/views/pasien/periksa.php -->
+<div class="container pt-4">
+    <div class="card">
+        <div class="card-header bg-info-subtle">
+            <h6>Pemeriksaan</h6>
+        </div>
+        <div class="card-body">
+            <section class="text-center">
+                <form method="post" action="<?php echo site_url('pasien/periksa/hasil'); ?>">
+                    <h4 class="mb-5">Apakah Anda Mengalami <?php echo $gejala['nama_gejala']."   ".$gejala['kode_gejala']; ?>?</h4>
+                    <input type="hidden" name="kode_gejala" value="<?php echo $kode_gejala; ?>">
+                    <button type="submit" name="jawab" value="ya" class="btn btn-success w-25">Ya</button>
+                    <button type="submit" name="jawab" value="tidak" class="btn btn-danger w-25">Tidak</button>
+
+                    <a href="<?php echo base_url('pasien/logout/reset') ?>" class="btn btn-warning mt-3">Reset</a>
+                </form>
+            </section>
+        </div>
+    </div>
+</div>
+
+
+dan ini adalah view hasil saya hasil.php
+
+
+<!-- application/views/pasien/hasil.php -->
+<div class="container pt-4">
+    <div class="card">
+        <div class="card-header bg-success-subtle">
+            <h6>Hasil Diagnosa</h6>
+        </div>
+        <div class="card-body">
+            <section class="text-center">
+                <h4 class="mb-5">Hasil Pemeriksaan Anda</h4>
+                <p>Penyakit yang terdiagnosa: <strong><?php echo $penyakit['nama_penyakit']; ?></strong></p>
+                <p>Persentase Kepastian: <strong><?php echo number_format($penyakit['persen'], 2); ?>%</strong></p>
+                <p>Solusi yang disarankan: <?php echo $penyakit['solusi']; ?></p>
+
+                <a href="<?php echo site_url('pasien/periksa'); ?>" class="btn btn-primary mt-4">Periksa Kembali</a>
+            </section>
+        </div>
+    </div>
+</div>
+
+
+ini adalah referensi saya yang masih dalam bentuk PHP native 
+
+<h3 class="fs-30">Perhitungan Forward Chaining</h3>
+<hr>
+
+<?php 
+		//jika session aturan kosong, maka
+if (!isset($_SESSION['aturan'])) 
+{
+			//memanggil fungsi untuk menampilkan pertanyaan pertaman dan mengirimkan data jenis gejala(hardware atau software)
+	$data = $aturan->pertanyaanpertama();
+}
+		//selain itu
+else
+{
+			//menampilkan pertanyaan sesuai data yang terakhir dijawab
+			//mengirimkan data session aturan yang terakhir
+
+			//fungsi php end() untuk mengambil value array yang terakhir
+	$value_terakhir = end($_SESSION['aturan']);
+
+			//fungsi php array_keys() untuk mengambil key arraynya saja
+			//karena array_keys ada di fungsi end, maka otomatis mengambil key array terakhir
+	$key_terakhir = end(array_keys($_SESSION['aturan']));
+
+	$data = $aturan->pertanyaanselanjutnya($key_terakhir, $value_terakhir);
+}
+?>
+
+<!-- <pre><?php print_r($_SESSION) ?></pre> -->
+
+<?php if (!empty($data['pertanyaan'])): ?>
+	<div class="well">
+		<form method="post">
+			<label>Apakah anda mengalami <?php echo $data['pertanyaan']['nama_gejala']; ?> ?</label>
+			<br>
+
+			<button class="btn btn-primary" name="lanjut[<?php echo $data['pertanyaan']['id_aturan'] ?>]" value="ya" aturan="<?php echo $data['pertanyaan']['id_aturan'] ?>">Ya</button>
+
+			<button class="btn btn-primary" name="lanjut[<?php echo $data['pertanyaan']['id_aturan'] ?>]" value="tidak" aturan="<?php echo $data['pertanyaan']['id_aturan'] ?>">Tidak</button>
+
+			<div class="pull-right">
+				<button class="btn btn-warning" name="kembali">Kembali</button>
+				<button class="btn btn-danger" name="hapussemua">Reset</button>
+			</div>
+		</form>
+	</div>
+<?php elseif(!empty($data['kerusakan'])): ?>
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			Hasil Hipotesa
+		</div>
+		<div class="panel-body">
+			<form method="post">
+				Berdasarkan gejala yang dipilih yaitu:
+				<ol>
+					<?php
+					foreach ($_SESSION['gejala'] as $key => $value) 
+					{
+						if($value=='ya')
+						{
+							$datasessionya[$key]=$value;
+						}
+					}
+					?>
+
+					<?php foreach ($datasessionya as $key => $value): ?>
+						<?php $ambilgejala = $gejala->ambil_gejala($key) ?>
+						<li><?php echo $ambilgejala['nama_gejala'] ?></li>
+					<?php endforeach ?>
+				</ol>
+
+				Maka, anda terjangkit <b><?php echo $data['kerusakan']['nama_kerusakan'] ?> dengan kemungkinan 100%</b>
+				<br>
+				<?php echo $data['kerusakan']['keterangan_kerusakan']?>
+				<br>
+				<?php echo $data['kerusakan']['solusi_kerusakan']?>
+
+				<div class="pull-right">
+					<button class="btn btn-danger" name="hapussemua">Reset</button>
+				</div>
+			</form>
+		</div>
+	</div>
+<?php elseif(!empty($data['hitungkerusakan'])): ?>
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			Hasil Hipotesa
+		</div>
+		<div class="panel-body">
+			<form method="post">
+				Berdasarkan gejala yang dipilih yaitu:
+				<ol>
+					<?php
+					foreach ($_SESSION['gejala'] as $key => $value) 
+					{
+						if($value=='ya')
+						{
+							$datasessionya[$key]=$value;
+						}
+					}
+					?>
+
+					<?php foreach ($datasessionya as $key => $value): ?>
+						<?php $ambilgejala = $gejala->ambil_gejala($key) ?>
+						<li><?php echo $ambilgejala['nama_gejala'] ?></li>
+					<?php endforeach ?>
+				</ol>
+
+				<?php foreach ($data['hitungkerusakan'] as $key => $value): ?>
+					<p>
+						Maka, anda terjangkit <b><?php echo $value['nama_kerusakan'] ?></b>dengan kemungkinan sebesar <b><?php echo round( $value['jumlahpersen'], 2) ?>%</b>
+					</p>
+				<?php endforeach ?>
+				<div class="pull-right">
+					<button class="btn btn-danger" name="hapussemua">Reset</button>
+				</div>
+			</form>
+		</div>
+	</div>
+<?php else: ?>
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			Hasil Hipotesa
+		</div>
+		<div class="panel-body">
+			<form method="post">
+				<p>
+					Karena tidak ada gejala yang muncul, maka anda baik-baik saja.
+				</p>
+
+				<div class="pull-right">
+					<button class="btn btn-danger" name="hapussemua">Reset</button>
+				</div>
+			</form>
+		</div>
+	</div>
+<?php endif ?>
+
+<?php 
+		 //ALUR
+		 //1. Menyimpan jawaban pertanyaan ke session
+		 //2. Lalu merefresh
+		 //3. lalu menampilkan pertanyaan sesuai array terakhir
+if(isset($_POST['lanjut']))
+{
+	$aturan->simpanproses($_POST['lanjut']);
+	echo "<script>location='perhitungan.php';</script>";
+}
+elseif(isset($_POST['kembali']))
+{
+		 	//hapus session aturan dan gejala terakhir
+	$key_aturan_terakhir = end(array_keys($_SESSION['aturan']));
+	$key_gejala_terakhir = end(array_keys($_SESSION['gejala']));
+	$aturan->hapusterakhir($key_aturan_terakhir, $key_gejala_terakhir);
+	echo "<script>location='perhitungan.php';</script>";
+}
+elseif (isset($_POST['hapussemua'])) 
+{
+	$aturan->hapussemua();
+	echo "<script>location='perhitungan.php';</script>";
+}
+?>
+
+
+
+ini untuk class.php nya 
+
+class kerusakangejala extends kerusakan
+{
+	function cari_gejala($id_kerusakan)
+	{
+		$a=$this->koneksi->query("SELECT * FROM aturan WHERE id_kerusakan='$id_kerusakan'");
+		$p=$a->fetch_assoc();
+		return $p;
+	}
+	function gejala_cari_gejala($id_kerusakan, $id_gejala_parent, $id_gejala_pertanyaan)
+	{
+		$ambil=$this->koneksi->query("SELECT * FROM aturan WHERE id_gejala_pertanyaan='$id_gejala_parent' AND id_gejala_ya='$id_gejala_pertanyaan' ");
+		if ($ambil->num_rows>0)
+		{
+			$pecah = $ambil->fetch_assoc();
+			$_SESSION["arraygejala"][$id_kerusakan]["ya"][] = $pecah["id_gejala_pertanyaan"];
+			$this->gejala_cari_gejala($id_kerusakan, $pecah["id_gejala_parent"], $pecah["id_gejala_pertanyaan"]);
+			// echo "<h1>kadal</h1>";
+		}
+		else
+		{
+			$x=$this->koneksi->query("SELECT*FROM aturan WHERE id_gejala_pertanyaan='$id_gejala_parent' AND id_gejala_tidak='$id_gejala_pertanyaan' ") or die(mysqli_error($koneksi));
+			if ($x->num_rows>0)
+			{
+				$pecah = $x->fetch_assoc();
+				$_SESSION["arraygejala"][$id_kerusakan]["tidak"][] = $pecah["id_gejala_pertanyaan"];
+				$this->gejala_cari_gejala($id_kerusakan, $pecah["id_gejala_parent"], $pecah["id_gejala_pertanyaan"]);
+			// echo "<h1>cicak</h1>";
+
+			}
+		}
+		return $_SESSION["arraygejala"];
+	}
+	function tampil_kerusakan_gejala()
+	{
+		$semuadata=[];
+		$ambilkerusakan=$this->koneksi->query("SELECT * FROM kerusakan");
+		while ($pecahkerusakan=$ambilkerusakan->fetch_assoc())
+		{
+			$id_kerusakan=$pecahkerusakan["id_kerusakan"];
+
+			// mendapatkan gejala pertama/terdekat dari kerusakan
+			$data_array_pertama = $this->cari_gejala($id_kerusakan);
+			// mendapatkan induk dari gejala pertama ke atas seterusnya
+			$gejala_cari_gejala = $this->gejala_cari_gejala($id_kerusakan, $data_array_pertama['id_gejala_parent'], $data_array_pertama['id_gejala_pertanyaan']);
+
+			$_SESSION['arraygejala'][$id_kerusakan]['ya']['awal'] = $data_array_pertama['id_gejala_pertanyaan'];
+		}
+
+		foreach ($_SESSION['arraygejala'] as $id_kerusakan => $value)
+		{
+			foreach ($value as $ya_tidak => $value2)
+			{
+				if($ya_tidak=="ya")
+				{
+					foreach ($value2 as $key => $value3)
+					{
+						$kerusakangejala[$id_kerusakan][] = $value3;
+					}
+				}
+			}
+		}
+		unset($_SESSION['arraygejala']);
+		return $kerusakangejala;
+	}
+	function tampil_data()
+	{
+		$semuadata=array();
+		$datakerusakangejala = $this->tampil_kerusakan_gejala();
+		foreach ($datakerusakangejala as $id_kerusakan => $semuagejala)
+		{
+			$ak=$this->koneksi->query("SELECT*FROM kerusakan WHERE id_kerusakan='$id_kerusakan'");
+			$pk=$ak->fetch_assoc();
+			$sg=array();
+			foreach ($semuagejala as $key => $id_gejala)
+			{
+				$ag=$this->koneksi->query("SELECT*FROM gejala WHERE id_gejala='$id_gejala'");
+				$sg[]=$ag->fetch_assoc();
+			}
+			$pk["gejala"]=$sg;
+			$semuadata[]=$pk;
+		}
+		return $semuadata;
+	}
+}
+$kerusakangejala = new kerusakangejala($mysqli);
+
+class aturan extends kerusakangejala
+{
+	public $koneksi;
+
+	function __construct($mysqli)
+	{
+		$this->koneksi = $mysqli;
+	}
+
+	function tampil_aturan()
+	{
+		$ambil = $this->koneksi->query("SELECT * FROM aturan LEFT JOIN kerusakan ON aturan.id_kerusakan=kerusakan.id_kerusakan");
+		while ($pecah = $ambil->fetch_assoc())
+		{
+			$data[] = $pecah;
+		}
+		return $data;
+	}
+
+	function ambilaturan($id_aturan)
+	{
+		$ambil = $this->koneksi->query("SELECT * FROM aturan WHERE id_aturan='$id_aturan'");
+		$pecah = $ambil->fetch_assoc();
+		return $pecah;
+	}
+
+
+	function ubahaturan($id_gejala_parent, $id_gejala_pertanyaan, $id_gejala_ya, $id_gejala_tidak, $id_kerusakan, $id_aturan)
+	{
+		$this->koneksi->query("UPDATE aturan SET id_gejala_parent='$id_gejala_parent', id_gejala_pertanyaan='$id_gejala_pertanyaan', id_gejala_ya='$id_gejala_ya', id_gejala_tidak='$id_gejala_tidak', id_kerusakan='$id_kerusakan' WHERE id_aturan='$id_aturan' ");
+	}
+
+	function pertanyaanpertama()
+	{
+		$ambil = $this->koneksi->query("SELECT * FROM aturan LEFT JOIN gejala ON aturan.id_gejala_pertanyaan=gejala.id_gejala WHERE aturan.id_gejala_parent='0'");
+		$pecah=$ambil->fetch_assoc();
+		$data['pertanyaan'] = $pecah;
+		return $data;
+	}
+
+	function pertanyaanselanjutnya($id_aturan, $jawaban)
+	{
+		//mengambil aturan berdasarkan $id_aturan di parameter untuk mendapatkan gejala pertanyaan gejala ya dan gejala tidak
+		$ambilaturan = $this->ambilaturan($id_aturan);
+		//pertanyaan selanjutnya
+		//untuk pertanyaan selanjutnya, yang kita tampilkan adalah aturan dengan syara:
+			// parent= gejala pertanyaan sebelumnya
+			// jawaban= ya/tidak
+		$id_gejala_parent = $ambilaturan['id_gejala_pertanyaan'];
+		if($jawaban=='ya')
+		{
+			$id_gejala_pertanyaan = $ambilaturan['id_gejala_ya'];
+			$id_kerusakan = $ambilaturan['id_kerusakan'];
+		}
+		elseif ($jawaban=='tidak') 
+		{
+			$id_gejala_pertanyaan = $ambilaturan['id_gejala_tidak'];
+			$id_kerusakan = "";
+		}
+
+		//jika id_gejala_pertanyaan tidak kosong maka lanjut ke pertanyaan selanjutnya
+		if (!empty($id_gejala_pertanyaan))
+		{
+			//membuat query untuk menampilkan pertayaan selanjutnya
+			$ambilps = $this->koneksi->query("SELECT * FROM aturan JOIN gejala ON aturan.id_gejala_pertanyaan=gejala.id_gejala WHERE aturan.id_gejala_parent='$id_gejala_parent' AND aturan.id_gejala_pertanyaan='$id_gejala_pertanyaan'");
+			$pecahps =$ambilps->fetch_assoc();
+			$data['pertanyaan'] = $pecahps;
+		}
+		elseif (!empty($id_kerusakan)) 
+		{
+			//mengambil query kerusakan berdasarkan id_kerusakan
+			$ambilkr = $this->ambil_kerusakan($id_kerusakan);
+
+			$data['kerusakan'] = $ambilkr;
+		}
+		else
+		{
+			//mengambil data session gejala yang dijawab ya
+			foreach ($_SESSION['gejala'] as $key => $value) 
+			{
+				if($value=='ya')
+				{
+					$datasessionya[$key]=$value;
+				}
+			}
+
+			//jika tidak kosong jawaban ya, maka
+			if(!empty($datasessionya))
+			{
+				//mengambil semua kerusakan gejala
+				$kerusakangejala = $this->tampil_kerusakan_gejala();
+				
+				//mengambil gejala yang dijawab ya
+				foreach ($_SESSION['gejala'] as $id_gejala => $jawaban) 
+				{
+					if($jawaban=="ya")
+					{
+						$gejalaya[]=$id_gejala;
+					}
+				}
+
+				$tampilkerusakan = $this->tampil_kerusakan();
+				foreach ($tampilkerusakan as $key => $value)
+				{
+					//membandingkan data yang sama
+					$gejalasama[$value['id_kerusakan']]=array_intersect($kerusakangejala[$value['id_kerusakan']], $gejalaya);
+
+					//menghitung jumlah data yang sama
+					$jumlahsama = count($gejalasama[$value['id_kerusakan']]);
+
+					//menghitung semua gejala pada tiap kerusakan
+					$jumlahkerusakangejala = count($kerusakangejala[$value['id_kerusakan']]);
+
+					//membagi jumlah yang sama dengan jumlah gejala di tiap kerusakan. lalu dikalikan 100
+					$hasilpersen[$value['id_kerusakan']]=$jumlahsama/$jumlahkerusakangejala*100;
+				}
+
+				//mengambil value jumlah kerusakan yang terbesar
+				$jumlahkerusakanterbesar = max($hasilpersen);
+
+
+				//memperulangkan semua hasil kerusakan dan jumlah persen
+				foreach ($hasilpersen as $id_kerusakan => $jumlah) 
+				{
+					//lalu kita ambil yang kerusakan terbesar saja, lalu disimpan dalam variabel $dataterbesar yang mengandung key id_kerusakan
+					if($jumlah==$jumlahkerusakanterbesar)
+					{
+						$dataterbesar[$id_kerusakan] = $jumlah;
+					}
+				}
+
+				//dari hasil id kerusakan terbesar, kta ambil semua data kerusakan()
+				foreach ($dataterbesar as $id_kerusakan => $jumlah)
+				{
+					$ambilkr = $this->ambil_kerusakan($id_kerusakan);
+					$datakerusakanterbesar[$id_kerusakan] = $ambilkr;
+					$datakerusakanterbesar[$id_kerusakan]['jumlahpersen'] = $jumlah;
+				}
+
+				
+				$data['hitungkerusakan'] = $datakerusakanterbesar;
+			}
+			//selain itu jika jawabannya tidak semua, maka
+			else
+			{
+				$data['jawabansemuatidak']="JAWABAN SEMUA TIDAK";
+			}
+		}
+
+		return $data;
+
+
+	}
+
+	function simpanproses($data)
+	{
+		foreach ($data as $id_aturan => $jawaban) 
+		{
+			$_SESSION['aturan'][$id_aturan] = $jawaban;
+
+			$ambilaturan = $this->ambilaturan($id_aturan);
+			if($jawaban=='ya')
+			{
+				$id_gejala = $ambilaturan['id_gejala_ya'];
+			}
+			elseif($jawaban=='tidak')
+			{
+				$id_gejala = $ambilaturan['id_gejala_tidak'];
+			}
+			$_SESSION['gejala'][$ambilaturan['id_gejala_pertanyaan']] = $jawaban;
+		}
+	}
+
+
+
+
+
+
+
+yang saya inginkan adalah membuat fitur periksa dan nanti juga muncul hasilnya tersimpan ke tabel diagnosis tapi untuk codingannya saya ingin sesuai dengan referensi saya dan diterjemahkan di code igniter 
+
+namun disini untuk ada  perbedaan padakolom 
+
+klaau di referensi id_kerusakan , id_gejala itu adalah kode_penyakit  , dan kode_gejala
+ yang lainnya sama  bagaimnakah skrip nya   untuk logika codingnya tolong adptasi dari referensi  php native saya  
+
+
